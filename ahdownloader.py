@@ -11,25 +11,24 @@ https://github.com/hadesy2k/ahdownloader
 
 import urllib.request
 import re
-from collections import OrderedDict
+import time
+from random import randint
+from threading import Thread, Lock
 
 from bs4 import BeautifulSoup
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker, ETA, FileTransferSpeed
 from selenium import webdriver
 
-import time
-from random import randint
-from threading import Thread, Lock
 
 class Downloader:
     def __init__(self, url, epRange):
         """ url -> string
             episode -> string (from-to) """
         self.driver = webdriver.PhantomJS()
-        self.downloads = []  # sort episodes in asending order
+        self.downloads = []
         self.pbar = ""  # Download Progressbar
-        self.list_lock = Lock()
-        self.download_lock = Lock()
+        self.list_lock = Lock() # prevent simultaneous append and pop of list
+        self.download_lock = Lock() # allow only one download at a time
         self.fetch_complete = False
         self.Main(url, epRange)
         
@@ -65,6 +64,7 @@ class Downloader:
         self.fetch_complete = True
         
         thread.join()
+        
         print("\n[+] Finished downloading. Enjoy your anime.")
 
     def getRange(self, epRange):
@@ -86,7 +86,7 @@ class Downloader:
         soup = BeautifulSoup(html, "html.parser")
         download = soup.find_all('source')
         if download:
-            self.list_lock.acquire() # prevent simultaneous append and pop of list
+            self.list_lock.acquire() 
             self.downloads.append(("Episode %s.mp4" % str(episode_number), download[0]['src']))
             self.list_lock.release()
             return
@@ -108,7 +108,7 @@ class Downloader:
         """ download the video """
         self.setProgressBar(filename)
         # For mulitple parallel downloads uncomment locks
-        self.download_lock.acquire() # allow only one download at a time
+        self.download_lock.acquire() 
         urllib.request.urlretrieve(url, filename, reporthook=self.progressBar)
         self.download_lock.release()
         self.pbar.finish()
